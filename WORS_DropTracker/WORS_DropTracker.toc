@@ -1,0 +1,11 @@
+## Interface: 30300
+## Title: WORS Drop Tracker
+## Notes: WORS Drop Tracker is a addon designed to track NPC kills and loot drops. It allows users to view kill counts and loot quantities for each NPC
+## Author: Untitled - Discord@Llama69420
+## Version: 1.0
+## DefaultState: disabled
+
+## SavedVariablesPerCharacter: WORS_DropTrackerDB
+
+
+WORS_DropTracker.lua
