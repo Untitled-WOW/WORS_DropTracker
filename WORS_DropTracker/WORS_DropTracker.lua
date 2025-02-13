@@ -160,7 +160,12 @@ local function CreateLootTrackerUI()
     resizeHandle:SetScript("OnMouseDown", function() WORS_DropTracker:StartSizing("BOTTOMRIGHT") end)
     resizeHandle:SetScript("OnMouseUp", function() WORS_DropTracker:StopMovingOrSizing() end)
 
-
+	-- Create title
+    local title = WORS_DropTracker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", 0, -10)
+    title:SetText("Drop Tracker")
+	title:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 16 font size
+	
 	-- Create the scrollable container for loot data
 	local scrollFrame = CreateFrame("ScrollFrame", nil, WORS_DropTracker, "UIPanelScrollFrameTemplate")
 	-- ***  IF Adding TITLE back change to scrollFrame:SetPoint("TOPLEFT", 10, -30) ***
@@ -226,6 +231,12 @@ local function CreateLootTrackerUI()
 		end
 
 		local yOffset = -10  -- Start position
+		if #sortedNPCs > 0 then
+			title:Hide()
+		else
+			title:Show()
+		end
+
 		for _, npcName in ipairs(sortedNPCs) do
 			local lootData = WORS_DropTrackerDB.npcLoots[npcName]
 
@@ -324,10 +335,33 @@ local function CreateLootTrackerUI()
 			for lootItem, data in pairs(lootData) do
 				local lootIcon, lootQuantity, lootLink
 				if lootItem == "Coins" then
-					lootIcon = "Interface\\Icons\\CoinsMany.blp"
 					lootQuantity = data
 					lootLink = nil
+
+					-- Determine the appropriate coin icon based on quantity
+					if lootQuantity >= 1500 then
+						lootIcon = "Interface\\Icons\\CoinsMany.blp"
+					elseif lootQuantity >= 1000 then
+						lootIcon = "Interface\\Icons\\Coins1000.blp"
+					elseif lootQuantity >= 250 then
+						lootIcon = "Interface\\Icons\\Coins250.blp"
+					elseif lootQuantity >= 100 then
+						lootIcon = "Interface\\Icons\\Coins100.blp"
+					elseif lootQuantity >= 25 then
+						lootIcon = "Interface\\Icons\\Coins25.blp"
+					elseif lootQuantity >= 5 then
+						lootIcon = "Interface\\Icons\\Coins5.blp"
+					elseif lootQuantity >= 4 then
+						lootIcon = "Interface\\Icons\\Coins4.blp"
+					elseif lootQuantity >= 3 then
+						lootIcon = "Interface\\Icons\\Coins3.blp"
+					elseif lootQuantity >= 2 then
+						lootIcon = "Interface\\Icons\\Coins2.blp"
+					else
+						lootIcon = "Interface\\Icons\\Coins1.blp"
+					end
 				else
+
 					lootIcon = data.icon
 					lootQuantity = data.count or 1
 					lootLink = data.link
@@ -386,7 +420,8 @@ local function CreateLootTrackerUI()
 		-- Adjust content height dynamically
 		content:SetHeight(math.abs(yOffset) + 20)
 	end
-    -- Initial update
+    
+	-- Initial update
     updateLootUI()
 
     -- Hook resizing event to update UI dynamically
@@ -398,26 +433,40 @@ end
 -- Create the UI and hook the update function
 local uiFrame, updateLootUI = CreateLootTrackerUI()
 
-
-
+-- Event to track loot when it's opened
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
 WORS_DropTracker:SetScript("OnEvent", function(self, event)
     if event == "LOOT_OPENED" then
-        local npcName = UnitName("target")  
-        local unitGUID = UnitGUID("target")  -- Get the NPC's GUID
-        if npcName and unitGUID then
-            debugPrint("Loot opened for NPC: " .. npcName)  
-            TrackLoot(npcName, unitGUID)  -- Track loot and kill counts
+        local lootSourceGUID = UnitGUID("mouseover") -- Get GUID of the looted corpse
+        local lootSourceName = GetUnitName("mouseover") -- Get name of the looted NPC
+
+        -- Fallback: If no valid loot source found, try "target" (only if it's an NPC)
+        if not lootSourceGUID or UnitIsPlayer("mouseover") then
+            if UnitExists("target") and not UnitIsPlayer("target") then
+                lootSourceGUID = UnitGUID("target")
+                lootSourceName = GetUnitName("target")
+            end
         end
-		updateLootUI()
+
+        -- Ensure we have valid NPC loot data before tracking
+        if lootSourceGUID and lootSourceName then
+            debugPrint("Loot opened for NPC: " .. lootSourceName)
+            TrackLoot(lootSourceName, lootSourceGUID)
+        else
+            debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
+        end
+
+        updateLootUI()
+
     elseif event == "PLAYER_LOGOUT" then
         -- Reset these values on logout
         WORS_DropTrackerDB.npcGuidCache = {}
         WORS_DropTrackerDB.npcLootCache = {}
     end
 end)
+
 
 
 
