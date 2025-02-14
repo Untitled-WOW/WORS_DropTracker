@@ -8,6 +8,11 @@ WORS_DropTrackerDB.lastTrackedNPC = WORS_DropTrackerDB.lastTrackedNPC or nil  --
 
 WORS_DropTrackerDB.debugMode = WORS_DropTrackerDB.debugMode or false -- debug prints
 WORS_DropTrackerDB.transparency = WORS_DropTrackerDB.transparency or 1.0 
+WORS_DropTrackerDB.sortByAD = WORS_DropTrackerDB.sortByAD or "descending"  -- Default to "descending"
+
+
+local hiddenNPCs = {}  -- Track hidden NPCs
+
 
 function debugPrint(message)
     if WORS_DropTrackerDB.debugMode then  -- Corrected the condition
@@ -59,12 +64,6 @@ local function TrackLoot(npcName, unitGUID)
         for slot = 1, lootCount do
             local iconPath, itemName, itemQuantity = GetLootSlotInfo(slot)
             local itemLink = GetLootSlotLink(slot)  -- Get the item link
-
-            --print("Loot Slot: " .. slot)
-            --print("Item Name: " .. tostring(itemName))
-            --print("Item Quantity: " .. tostring(itemQuantity))
-            --print("Icon Path: " .. tostring(iconPath))
-            --print("Item Link: " .. tostring(itemLink))  
 
             if itemName and itemQuantity > 0 then
                 -- Track loot drops for each NPC
@@ -129,8 +128,8 @@ end
 local function CreateLootTrackerUI()
     -- Create main frame
     local WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", UIParent)
-    WORS_DropTracker:SetSize(300, 400)  -- Default width and height of the frame
-    WORS_DropTracker:SetPoint("CENTER")  -- Position it in the center of the screen
+    WORS_DropTracker:SetSize(150, 150)  -- Default width and height of the frame
+    WORS_DropTracker:SetPoint("RIGHT", UIParent, "RIGHT", 0, -150)  -- Position it in the center of the screen
     WORS_DropTracker:SetMovable(true)
     WORS_DropTracker:EnableMouse(true)
     WORS_DropTracker:RegisterForDrag("LeftButton")
@@ -149,6 +148,11 @@ local function CreateLootTrackerUI()
     WORS_DropTracker:SetResizable(true)
     WORS_DropTracker:SetMinResize(100, 100)  -- Minimum size to prevent it from becoming too small
     WORS_DropTracker:SetMaxResize(600, 600)  -- Maximum size
+	
+	
+	WORS_DropTracker:SetFrameStrata("LOW")  -- Lower than default UI elements
+	WORS_DropTracker:SetFrameLevel(1)       -- Ensures it's at the bottom of LOW strata
+
 
     -- Resize handle
     local resizeHandle = CreateFrame("Button", nil, WORS_DropTracker)
@@ -164,13 +168,13 @@ local function CreateLootTrackerUI()
     local title = WORS_DropTracker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", 0, -10)
     title:SetText("Drop Tracker")
-	title:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 16 font size
+	title:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 18 font size
 	
 	-- Create the scrollable container for loot data
 	local scrollFrame = CreateFrame("ScrollFrame", nil, WORS_DropTracker, "UIPanelScrollFrameTemplate")
 	-- ***  IF Adding TITLE back change to scrollFrame:SetPoint("TOPLEFT", 10, -30) ***
-	scrollFrame:SetPoint("TOPLEFT", 5, 0)
-	scrollFrame:SetPoint("BOTTOMRIGHT", -5, 10)  -- Adjust this so the content will extend over the scroll bar
+	scrollFrame:SetPoint("TOPLEFT", 3, 0)
+	scrollFrame:SetPoint("BOTTOMRIGHT", -3, 3)  -- Adjust this so the content will extend over the scroll bar
 
 	-- Create content frame inside scrollable area
 	local content = CreateFrame("Frame", nil, scrollFrame)
@@ -220,17 +224,17 @@ local function CreateLootTrackerUI()
 		local lastNPC = WORS_DropTrackerDB.lastTrackedNPC  -- Store last added NPC
 		
 		for npcName in pairs(WORS_DropTrackerDB.npcLoots) do
-			if npcName ~= lastNPC then
+			if npcName ~= lastNPC and not hiddenNPCs[npcName] then
 				table.insert(sortedNPCs, npcName)
 			end
 		end
 		table.sort(sortedNPCs)  -- Sort alphabetically
 
-		if lastNPC and WORS_DropTrackerDB.npcLoots[lastNPC] then
+		if lastNPC and WORS_DropTrackerDB.npcLoots[lastNPC] and not hiddenNPCs[lastNPC] then
 			table.insert(sortedNPCs, 1, lastNPC)  -- Insert last NPC at the top
 		end
 
-		local yOffset = -10  -- Start position
+		local yOffset = -3  -- Start position
 		if #sortedNPCs > 0 then
 			title:Hide()
 		else
@@ -252,7 +256,11 @@ local function CreateLootTrackerUI()
 			local npcLabel = npcFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 			npcLabel:SetPoint("LEFT", npcFrame, "LEFT", 0, 0)
 			npcLabel:SetText(npcName .. " x " .. killCount)
-			npcLabel:SetFont("Fonts/runescape.ttf", 16, "OUTLINE")  -- 16 font size
+			npcLabel:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 18 font size
+			-- Adjust frame size based on text width
+			local textWidth = npcLabel:GetStringWidth() + 10  -- Add padding
+			npcFrame:SetSize(textWidth, 20)
+
 
 			yOffset = yOffset - 30
 			table.insert(content.children, npcFrame) -- Add the frame instead of just the label
@@ -261,13 +269,15 @@ local function CreateLootTrackerUI()
 			local xOffset = 0
 			yOffset = yOffset - 0  -- Space before loot icons
 
+			
+
 			-- Make the frame clickable to show reset confirmation
 			npcFrame:SetScript("OnClick", function(self, button)
 				-- Check if Shift is held down while clicking
-				if IsShiftKeyDown() then
+				if IsControlKeyDown() then
 					-- Confirm reset all NPC data
 					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET_ALL"] = {
-						text = "Reset loot and kill count for all NPCs?",
+						text = "Drop Tracker: Do you want to reset all NPCs?",
 						button1 = "Yes",
 						button2 = "No",
 						OnAccept = function()
@@ -278,7 +288,7 @@ local function CreateLootTrackerUI()
 							WORS_DropTrackerDB.npcLootCache = {}
 
 							-- Update UI
-							print("All NPC data has been reset.")
+							print("Drop Tracker: All NPC data has been reset.")
 							updateLootUI()
 						end,
 						timeout = 0,
@@ -286,12 +296,12 @@ local function CreateLootTrackerUI()
 						hideOnEscape = true,
 						preferredIndex = 3,
 					}
-
 					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET_ALL")
-				else
+					
+				elseif IsShiftKeyDown() then
 					-- Reset only this specific NPC's data
 					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET"] = {
-						text = "Reset loot and kill count for " .. npcName .. "?",
+						text = "Drop Tracker: Do you want to reset " .. npcName .. " data?",
 						button1 = "Yes",
 						button2 = "No",
 						OnAccept = function()
@@ -302,7 +312,7 @@ local function CreateLootTrackerUI()
 							WORS_DropTrackerDB.npcLootCache[npcName] = nil
 
 							-- Update UI
-							print(npcName .. " data has been reset.")
+							print("Drop Tracker: " .. npcName .. " data has been reset.")
 							updateLootUI()
 						end,
 						timeout = 0,
@@ -310,69 +320,105 @@ local function CreateLootTrackerUI()
 						hideOnEscape = true,
 						preferredIndex = 3,
 					}
-
 					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET")
+				else
+					-- Hide this NPC without confirmation
+					hiddenNPCs[npcName] = true  
+					print("Drop Tracker: " .. npcName .. " will tracked again after the next ".. npcName .." loot or on next login.")
+					updateLootUI()
+
 				end
 			end)
 
 			-- Tooltip and hover effects
 			npcFrame:SetScript("OnEnter", function(self)
-				-- Check if Shift key is held down
-				local tooltipText = IsShiftKeyDown() and "Reset All NPCs" or "Reset " .. npcName
+				local tooltipText = IsShiftKeyDown() and "Reset Data for " .. npcName or (IsControlKeyDown() and "Reset All NPC Data" or "Hide " .. npcName)
 
 				-- Show tooltip with dynamic text
-				GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 				GameTooltip:SetText(tooltipText, 1, 1, 1, 1, true)
 				GameTooltip:Show()
 			end)
-
 			npcFrame:SetScript("OnLeave", function()
 				GameTooltip:Hide() -- Hide tooltip
 			end)
 
 
 			-- Loot icons
+			local lootItems = {}
+			-- First, gather loot items coins
 			for lootItem, data in pairs(lootData) do
 				local lootIcon, lootQuantity, lootLink
 				if lootItem == "Coins" then
 					lootQuantity = data
 					lootLink = nil
+					lootIcon = "Interface\\Icons\\CoinsMany.blp"  -- Default coin icon
+					
+					-- Ensure we only add coins if the quantity is greater than 0
+					if lootQuantity > 0 then
+						-- Determine the appropriate coin icon based on quantity
+						if lootQuantity >= 1500 then
+							lootIcon = "Interface\\Icons\\CoinsMany.blp"
+						elseif lootQuantity >= 1000 then
+							lootIcon = "Interface\\Icons\\Coins1000.blp"
+						elseif lootQuantity >= 250 then
+							lootIcon = "Interface\\Icons\\Coins250.blp"
+						elseif lootQuantity >= 100 then
+							lootIcon = "Interface\\Icons\\Coins100.blp"
+						elseif lootQuantity >= 25 then
+							lootIcon = "Interface\\Icons\\Coins25.blp"
+						elseif lootQuantity >= 5 then
+							lootIcon = "Interface\\Icons\\Coins5.blp"
+						elseif lootQuantity >= 4 then
+							lootIcon = "Interface\\Icons\\Coins4.blp"
+						elseif lootQuantity >= 3 then
+							lootIcon = "Interface\\Icons\\Coins3.blp"
+						elseif lootQuantity >= 2 then
+							lootIcon = "Interface\\Icons\\Coins2.blp"
+						else
+							lootIcon = "Interface\\Icons\\Coins1.blp"
+						end
 
-					-- Determine the appropriate coin icon based on quantity
-					if lootQuantity >= 1500 then
-						lootIcon = "Interface\\Icons\\CoinsMany.blp"
-					elseif lootQuantity >= 1000 then
-						lootIcon = "Interface\\Icons\\Coins1000.blp"
-					elseif lootQuantity >= 250 then
-						lootIcon = "Interface\\Icons\\Coins250.blp"
-					elseif lootQuantity >= 100 then
-						lootIcon = "Interface\\Icons\\Coins100.blp"
-					elseif lootQuantity >= 25 then
-						lootIcon = "Interface\\Icons\\Coins25.blp"
-					elseif lootQuantity >= 5 then
-						lootIcon = "Interface\\Icons\\Coins5.blp"
-					elseif lootQuantity >= 4 then
-						lootIcon = "Interface\\Icons\\Coins4.blp"
-					elseif lootQuantity >= 3 then
-						lootIcon = "Interface\\Icons\\Coins3.blp"
-					elseif lootQuantity >= 2 then
-						lootIcon = "Interface\\Icons\\Coins2.blp"
-					else
-						lootIcon = "Interface\\Icons\\Coins1.blp"
+						-- Store coin data first
+						table.insert(lootItems, {lootItem, lootQuantity, lootIcon, lootLink, 1}) -- Priority 1 for coins
 					end
 				else
-
 					lootIcon = data.icon
 					lootQuantity = data.count or 1
 					lootLink = data.link
+					table.insert(lootItems, {lootItem, lootQuantity, lootIcon, lootLink, 2}) -- Priority 2 for other items
 				end
+			end
+
+			-- Sort the loot items by priority first, and then by quantity descending or ascending
+			table.sort(lootItems, function(a, b)
+				if WORS_DropTrackerDB.sortByAD == "descending" then
+					-- Sort by priority first, then quantity descending (default)
+					if a[5] == b[5] then
+						return a[2] > b[2]  -- Quantity descending
+					else
+						return a[5] < b[5]  -- Priority first
+					end
+				else
+					-- Sort by priority first, then quantity ascending
+					if a[5] == b[5] then
+						return a[2] < b[2]  -- Quantity ascending
+					else
+						return a[5] < b[5]  -- Priority first
+					end
+				end
+			end)
+
+			-- Display all loot items, including coins first (if their quantity is greater than 0)
+			for _, item in ipairs(lootItems) do
+				local lootItem, lootQuantity, lootIcon, lootLink = unpack(item)
 
 				-- Create icon frame
 				local iconFrame = CreateFrame("Frame", nil, content)
 				iconFrame:SetSize(iconSize, iconSize)
 
 				-- Check if the icon fits in the current row, if not, move to the next row
-				if (xOffset + iconSize + padding) > (frameWidth - 20) then
+				if (xOffset + iconSize + padding) > (frameWidth-5) then
 					xOffset = 0  -- Reset xOffset to start new row
 					yOffset = yOffset - iconSize - 18  -- Move down for the new row
 				end
@@ -388,8 +434,7 @@ local function CreateLootTrackerUI()
 				local quantityText = iconFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 				quantityText:SetPoint("BOTTOMLEFT", iconFrame, "TOPLEFT", -3, -5)
 				quantityText:SetText(formatOSRSNumber(lootQuantity))
-				quantityText:SetFont("Fonts/runescape.ttf", 13, "OUTLINE")  -- 16 font size
-
+				quantityText:SetFont("Fonts/runescape.ttf", 14, "OUTLINE")  -- 16 font size
 
 				-- Tooltip on hover
 				iconFrame:EnableMouse(true)
@@ -413,6 +458,7 @@ local function CreateLootTrackerUI()
 				xOffset = xOffset + iconSize + padding
 			end
 
+
 			-- Space between NPCs
 			yOffset = yOffset - 40
 		end
@@ -434,31 +480,29 @@ end
 local uiFrame, updateLootUI = CreateLootTrackerUI()
 
 -- Event to track loot when it's opened
--- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
 WORS_DropTracker:SetScript("OnEvent", function(self, event)
     if event == "LOOT_OPENED" then
-        local lootSourceGUID = UnitGUID("mouseover") -- Get GUID of the looted corpse
-        local lootSourceName = GetUnitName("mouseover") -- Get name of the looted NPC
+		local lootSourceGUID = UnitGUID("mouseover") -- Get GUID of the looted corpse
+		local lootSourceName = GetUnitName("mouseover") -- Get name of the looted NPC
 
-        -- Fallback: If no valid loot source found, try "target" (only if it's an NPC)
-        if not lootSourceGUID or UnitIsPlayer("mouseover") then
-            if UnitExists("target") and not UnitIsPlayer("target") then
-                lootSourceGUID = UnitGUID("target")
-                lootSourceName = GetUnitName("target")
-            end
-        end
+		-- Ensure we have valid NPC loot data before tracking
+		if lootSourceGUID and lootSourceName then
+			debugPrint("Loot opened for NPC: " .. lootSourceName)
+			-- Remove NPC from hidden list when looted
+			if hiddenNPCs[lootSourceName] then
+				hiddenNPCs[lootSourceName] = nil
+				debugPrint(lootSourceName .. " is visible again.")
+			end
 
-        -- Ensure we have valid NPC loot data before tracking
-        if lootSourceGUID and lootSourceName then
-            debugPrint("Loot opened for NPC: " .. lootSourceName)
-            TrackLoot(lootSourceName, lootSourceGUID)
-        else
-            debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
-        end
+			-- Track loot after un-hiding the NPC
+			TrackLoot(lootSourceName, lootSourceGUID)
+		else
+			debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
+		end
 
-        updateLootUI()
+		updateLootUI()
 
     elseif event == "PLAYER_LOGOUT" then
         -- Reset these values on logout
@@ -468,6 +512,20 @@ WORS_DropTracker:SetScript("OnEvent", function(self, event)
 end)
 
 
+-- Variable to store the last resize time for debouncing
+local lastResizeTime = 0
+local resizeCooldown = 0.2  -- Time in seconds to wait after resizing before updating
+-- Resize handling function
+local function handleResize(self)
+    local currentTime = GetTime()
+
+    if currentTime - lastResizeTime > resizeCooldown then
+        lastResizeTime = currentTime  -- Update the last resize time
+        updateLootUI()  
+    end
+end
+-- Attach the OnSizeChanged event handler to the frame
+WORS_DropTracker:SetScript("OnSizeChanged", handleResize)
 
 
 function toggleDropTableTransparency()  
@@ -486,6 +544,17 @@ function toggleDropTableTransparency()
         WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, 1.0)  -- Fully visible backdrop
         WORS_DropTrackerDB.transparency = 1.0
     end
+end
+
+local function toggleSortOrder()
+    if WORS_DropTrackerDB.sortByAD == "ascending" then
+        WORS_DropTrackerDB.sortByAD = "descending"
+        debugPrint("Sorting by: Priority First, then Quantity (Descending)")
+    else
+        WORS_DropTrackerDB.sortByAD = "ascending"
+        debugPrint("Sorting by: Priority First, then Quantity (Ascending)")
+    end
+	updateLootUI()
 end
 
 -- Minimap Icon for WORS_DropTracker using LibDBIcon and Ace3
@@ -509,14 +578,16 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
                 WORS_DropTracker:Show()
                 toggleDropTableTransparency()
             end
-        end
+        elseif btn == "MiddleButton" then
+        	toggleSortOrder()
+		end
     end,
     OnTooltipShow = function(tooltip)
         if not tooltip or not tooltip.AddLine then
             return
         end
-        tooltip:AddLine("WORS DropTracker\n\nLeft-click: Toggle WORS DropTracker Window", nil, nil, nil, nil)
-        tooltip:AddLine("Right-click: Toggle Transparency 50% or 100%", nil, nil, nil, nil)
+        tooltip:AddLine("Drop Tracker\nLeft-click: Toggle Drop Tracker Window", nil, nil, nil, nil)
+        tooltip:AddLine("Right-click: Toggle Transparency 0%, 50% or 100%\nMiddle-click: Toggle Item sort order", nil, nil, nil, nil)
     end,
 })
 
@@ -525,7 +596,7 @@ function addon:OnInitialize()
         profile = {
             minimap = {
                 hide = false,
-                minimapPos = 190, -- This is the hardcoded position (in degrees)
+                minimapPos = 190, 
             },
         },
     })
