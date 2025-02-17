@@ -5,10 +5,10 @@ WORS_DropTrackerDB.npcKills = WORS_DropTrackerDB.npcKills or {}  -- Track NPC ki
 WORS_DropTrackerDB.npcGuidCache = WORS_DropTrackerDB.npcGuidCache or {}  -- Cache GUIDs to prevent duplicate kill counts
 WORS_DropTrackerDB.npcLootCache = WORS_DropTrackerDB.npcLootCache or {}  -- Cache loot tracking to prevent duplicate loot tracking
 WORS_DropTrackerDB.lastTrackedNPC = WORS_DropTrackerDB.lastTrackedNPC or nil  -- Store last added NPC
-
 WORS_DropTrackerDB.debugMode = WORS_DropTrackerDB.debugMode or false -- debug prints
 WORS_DropTrackerDB.transparency = WORS_DropTrackerDB.transparency or 1.0 
 WORS_DropTrackerDB.sortByAD = WORS_DropTrackerDB.sortByAD or "descending"  -- Default to "descending"
+
 
 
 local hiddenNPCs = {}  -- Track hidden NPCs
@@ -50,7 +50,7 @@ end
 
 
 -- Function to track loot
-local function TrackLoot(npcName, unitGUID)
+local function trackLoot(npcName, unitGUID)
     -- Only track loot if it hasn't been processed for this NPC and GUID
     WORS_DropTrackerDB.lastTrackedNPC = npcName
     if WORS_DropTrackerDB.npcLootCache[unitGUID] then
@@ -80,24 +80,28 @@ local function TrackLoot(npcName, unitGUID)
                 debugPrint("Looted item: " .. (itemLink or itemName) .. " - Quantity: " .. itemQuantity)  
             
             elseif itemQuantity == 0 then
-                -- Extract number from coin text (e.g., "5 coppers", "1 silver", etc.)
-                local coinAmount = tonumber(string.match(itemName, "(%d+)"))
-                if coinAmount then
-                    if not WORS_DropTrackerDB.npcLoots[npcName] then
-                        WORS_DropTrackerDB.npcLoots[npcName] = {}
-                    end
-                    if not WORS_DropTrackerDB.npcLoots[npcName]["Coins"] then
-                        WORS_DropTrackerDB.npcLoots[npcName]["Coins"] = 0
-                    end
-                    WORS_DropTrackerDB.npcLoots[npcName]["Coins"] = WORS_DropTrackerDB.npcLoots[npcName]["Coins"] + coinAmount
-                    debugPrint("Looted Coins: " .. coinAmount)
-                else
-                    debugPrint("Could not determine coin amount for: " .. itemName)
-                end
-            
-            else
-                debugPrint("Could not get item name or quantity for loot slot: " .. slot)  
-            end
+
+				-- Extract gold, silver, and copper values from the coin text (handling capitalization)
+				local gold = tonumber(string.match(itemName, "(%d+)%s*[Gg]old")) or 0
+				local silver = tonumber(string.match(itemName, "(%d+)%s*[Ss]ilver")) or 0
+				local copper = tonumber(string.match(itemName, "(%d+)%s*[Cc]opper")) or 0
+
+				-- Convert everything to copper
+				local totalCopper = (gold * 10000) + (silver * 100) + copper
+
+				if totalCopper > 0 then
+					if not WORS_DropTrackerDB.npcLoots[npcName] then
+						WORS_DropTrackerDB.npcLoots[npcName] = {}
+					end
+					if not WORS_DropTrackerDB.npcLoots[npcName]["Coins"] then
+						WORS_DropTrackerDB.npcLoots[npcName]["Coins"] = 0
+					end
+					WORS_DropTrackerDB.npcLoots[npcName]["Coins"] = WORS_DropTrackerDB.npcLoots[npcName]["Coins"] + totalCopper
+					debugPrint("Looted Coins: " .. totalCopper .. " copper")
+				else
+					print("Could not determine coin amount for: " .. itemName)
+				end
+			end
         end
     else
         debugPrint("No loot slots available!")  
@@ -141,7 +145,7 @@ local function CreateLootTrackerUI()
 		bgFile = "Interface\\Buttons\\WHITE8x8",  -- A simple 1x1 pixel texture
 		insets = { left = 0, right = 0, top = 0, bottom = 0 }
 	})
-	WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, WORS_DropTrackerDB.transparency)  
+	WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, 1.0)  
 
 
     -- Make the frame resizable
@@ -202,8 +206,27 @@ local function CreateLootTrackerUI()
 			scrollDownButton:EnableMouse(false)
 		end
 	end
+	
+	function loadDropTrackerTransparency()
+	-- Check if transparency value exists in saved data
+		if WORS_DropTrackerDB.transparency then
+			if WORS_DropTrackerDB.transparency == 1.0 then
+				WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, 1.0)  
+			elseif WORS_DropTrackerDB.transparency == 0.5 then
+				WORS_DropTracker:SetBackdropColor(0.0, 0.0, 0.0, 0.5)
+			elseif WORS_DropTrackerDB.transparency == 0.0 then
+				WORS_DropTracker:SetBackdropColor(0.0, 0.0, 0.0, 0.0)  
+			end			
+		else
+			WORS_DropTrackerDB.transparency = 1.0  
+			WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, 1.0)  
 
-    -- Function to update the UI with the loot data
+		end
+	end
+	
+
+
+	-- Function to update the UI with the loot data
 	local function updateLootUI()
 		local frameWidth = WORS_DropTracker:GetWidth()
 		local iconSize = 32  -- Icon size
@@ -255,6 +278,7 @@ local function CreateLootTrackerUI()
 			-- Create NPC label inside the frame
 			local npcLabel = npcFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 			npcLabel:SetPoint("LEFT", npcFrame, "LEFT", 0, 0)
+			
 			npcLabel:SetText(npcName .. " x " .. killCount)
 			npcLabel:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 18 font size
 			-- Adjust frame size based on text width
@@ -465,11 +489,11 @@ local function CreateLootTrackerUI()
 
 		-- Adjust content height dynamically
 		content:SetHeight(math.abs(yOffset) + 20)
+		loadDropTrackerTransparency()
 	end
     
 	-- Initial update
-    updateLootUI()
-
+    updateLootUI()	
     -- Hook resizing event to update UI dynamically
     WORS_DropTracker:SetScript("OnSizeChanged", updateLootUI)
 
@@ -479,36 +503,125 @@ end
 -- Create the UI and hook the update function
 local uiFrame, updateLootUI = CreateLootTrackerUI()
 
+
+
+
+function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
+    if lootSourceGUID and lootSourceName then
+        debugPrint("Loot opened for NPC: " .. lootSourceName)
+		lootSourceName = lootSourceName .. ": lvl " .. lootSourceLvl
+        -- Remove NPC from hidden list when looted
+        if hiddenNPCs[lootSourceName] then
+            hiddenNPCs[lootSourceName] = nil
+            debugPrint(lootSourceName .. " is visible again.")
+        end
+        -- Track loot after un-hiding the NPC
+        trackLoot(lootSourceName, lootSourceGUID)
+	end
+end
+
+local testNpcGUID = 696969
+local trackAllLootFrames = false
+local ignoreNext_LOOT_OPENED_Event = false
+
+
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
-WORS_DropTracker:SetScript("OnEvent", function(self, event)
-    if event == "LOOT_OPENED" then
-		local lootSourceGUID = UnitGUID("mouseover") -- Get GUID of the looted corpse
-		local lootSourceName = GetUnitName("mouseover") -- Get name of the looted NPC
+WORS_DropTracker:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+WORS_DropTracker:RegisterEvent("UNIT_SPELLCAST_SENT")
 
-		-- Ensure we have valid NPC loot data before tracking
-		if lootSourceGUID and lootSourceName then
-			debugPrint("Loot opened for NPC: " .. lootSourceName)
-			-- Remove NPC from hidden list when looted
-			if hiddenNPCs[lootSourceName] then
-				hiddenNPCs[lootSourceName] = nil
-				debugPrint(lootSourceName .. " is visible again.")
-			end
+WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
+	if event == "UNIT_SPELLCAST_SENT" then
+        local unit, spell, _, spellCastID = ...
+		if string.find(spellCastID, "Sack of Goods") then
+			print("Detected opening Sack of Goods. Ignoring next LOOT_OPENED event.")
+			ignoreNext_LOOT_OPENED_Event = true
+			debugPrint("ignoreNext_LOOT_OPENED_Event set true")
+		elseif string.find(spellCastID, "Tombstone") then
+			print("Detected opening Tombstone. Ignoring next LOOT_OPENED event.")
+			ignoreNext_LOOT_OPENED_Event = true
+			debugPrint("ignoreNext_LOOT_OPENED_Event set true")
+		end
+	elseif event == "UPDATE_MOUSEOVER_UNIT" then
+        local unitGUID = UnitGUID("mouseover")
+		local unitSourceName = GetUnitName("mouseover") -- Get name of the looted NPC
 
-			-- Track loot after un-hiding the NPC
-			TrackLoot(lootSourceName, lootSourceGUID)
-		else
-			debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
+	
+	elseif event == "LOOT_OPENED" then
+		if ignoreNext_LOOT_OPENED_Event then
+			print("Ignoring loot")
+			ignoreNext_LOOT_OPENED_Event = false
+			debugPrint("ignoreNext_LOOT_OPENED_Event set false")
+			return
+		end	
+		local targetGUID = UnitGUID("target")
+		local targetName = GetUnitName("target")
+		local targetIsDead = UnitIsDead("target")  
+		local targetLevel = UnitLevel("target")
+
+		local mouseoverGUID = UnitGUID("mouseover")
+		local mouseoverName = GetUnitName("mouseover")
+		local mouseoverIsDead = UnitIsDead("mouseover") 
+		local mouseoverLevel = UnitLevel("mouseover")
+		local playerGUID = UnitGUID("player") -- Get player's GUID
+		-- Check if targetGUID matches playerGUID and clear target values if true
+		if targetGUID == playerGUID then
+			targetGUID = nil
+			targetName = nil
+			targetIsDead = nil
+			targetLevel = nil
+			debugPrint("Target values have been cleared because the target matches the player's GUID.")
 		end
 
-		updateLootUI()
+		-- Check if mouseoverGUID matches playerGUID and clear mouseover values if true
+		if mouseoverGUID == playerGUID then
+			mouseoverGUID = nil
+			mouseoverName = nil
+			mouseoverIsDead = nil
+			mouseoverLevel = nil
+			debugPrint("Mouseover values have been cleared because the mouseover matches the player's GUID.")
+		end
+		-- Check if all values match AND both are dead (isDead == 1)
+		if targetGUID == mouseoverGUID and 
+		   targetName == mouseoverName and 
+		   targetIsDead == 1 and  -- (dead == 1) (alive == nil)
+		   mouseoverIsDead == 1 and  -- (dead == 1) (alive == nil)
+		   targetLevel == mouseoverLevel then
+			
+			print("Target and Mouseover are the SAME entity and BOTH are DEAD!")
+			-- Perform your action here
+			ProcessNPCLoot(targetGUID, targetName, targetLevel)
 
+		elseif targetGUID ~= nil or mouseoverGUID ~= nil then
+			print("Target and Mouseover are DIFFERENT entities")
+			if targetGUID ~= nil and targetIsDead then
+				print("Using Target: " .. targetName)
+				--print("Target Name: " .. targetName .. "\nisDead: " .. tostring(targetIsDead) .. "\nTarget Level: " .. tostring(targetLevel) .. "\nTargetGUID: " .. tostring(targetGUID))
+				--print("Target exists and is dead, but does not match mouseover.")
+				ProcessNPCLoot(targetGUID, targetName, targetLevel)
+			elseif mouseoverGUID ~= nil and mouseoverIsDead then
+				print("Using Mouseover: " .. mouseoverName)
+				--print("Mouseover Name: " .. mouseoverName .. "\nisDead: " .. tostring(mouseoverIsDead) .. "\nMouseover Level: " .. tostring(mouseoverLevel) .. "\nMouseoverGUID: " .. tostring(mouseoverGUID))
+				--print("Mouseover exists and is dead, but does not match target.")
+				ProcessNPCLoot(mouseoverGUID, mouseoverName, mouseoverLevel)
+			else
+				debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
+				--print("F you Ghrims")
+			end			
+		elseif trackAllLootFrames == true then
+			print("DEBUG: Tracking unmatched Loot frames as TESTNPC")
+			ProcessNPCLoot(testNpcGUID, "TESTNPC", 21)
+			testNpcGUID = testNpcGUID + 1
+		else
+			debugPrint("No valid NPC found for loot tracking. Ignoring loot.")
+		end	
+		updateLootUI()
     elseif event == "PLAYER_LOGOUT" then
         -- Reset these values on logout
         WORS_DropTrackerDB.npcGuidCache = {}
         WORS_DropTrackerDB.npcLootCache = {}
-    end
+	end
 end)
 
 
@@ -524,8 +637,9 @@ local function handleResize(self)
         updateLootUI()  
     end
 end
--- Attach the OnSizeChanged event handler to the frame
 WORS_DropTracker:SetScript("OnSizeChanged", handleResize)
+
+
 
 
 function toggleDropTableTransparency()  
@@ -601,4 +715,5 @@ function addon:OnInitialize()
         },
     })
     WORS_DropTrackerMinimapButton:Register("WORS_DropTracker", miniButton, self.db.profile.minimap)
+	
 end
