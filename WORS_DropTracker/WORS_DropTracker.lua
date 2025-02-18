@@ -8,6 +8,7 @@ WORS_DropTrackerDB.lastTrackedNPC = WORS_DropTrackerDB.lastTrackedNPC or nil  --
 WORS_DropTrackerDB.debugMode = WORS_DropTrackerDB.debugMode or false -- debug prints
 WORS_DropTrackerDB.transparency = WORS_DropTrackerDB.transparency or 1.0 
 WORS_DropTrackerDB.sortByAD = WORS_DropTrackerDB.sortByAD or "descending"  -- Default to "descending"
+WORS_DropTrackerDB.showOnLaunch = WORS_DropTrackerDB.showOnLaunch or false
 -- Saved variables for frame position & size
 WORS_DropTrackerDB.framePos = WORS_DropTrackerDB.framePos or {}  
 WORS_DropTrackerDB.framePos.point = WORS_DropTrackerDB.framePos.point or "RIGHT"
@@ -150,6 +151,12 @@ local function CreateLootTrackerUI()
     else
         WORS_DropTracker:SetPoint("RIGHT", UIParent, "RIGHT", 0, -150) -- Default position
     end
+	-- load showOnLaunch
+	if WORS_DropTrackerDB.showOnLaunch == true then
+		WORS_DropTracker:Show()
+	else
+		WORS_DropTracker:Hide()
+	end
 	
 	-- Save the frame's position and size
 	local function SaveFrameSettings()
@@ -200,6 +207,7 @@ local function CreateLootTrackerUI()
 	closeButton:SetPushedTexture("Interface\\WORS\\OldSchool-CloseButton-Down.blp")
 	closeButton:SetScript("OnClick", function()
 		WORS_DropTracker:Hide()
+		WORS_DropTrackerDB.showOnLaunch = false
 	end)
 	closeButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -334,31 +342,24 @@ local function CreateLootTrackerUI()
 			local xOffset = 0
 			yOffset = yOffset - 0  -- Space before loot icons
 			-- Make the frame clickable to show reset confirmation
-			npcFrame:SetScript("OnClick", function(self, button)
-				-- Check if Shift is held down while clicking
-				if IsControlKeyDown() then
-					-- Confirm reset all NPC data
-					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET_ALL"] = {
-						text = "Drop Tracker: Do you want to reset all NPCs?",
-						button1 = "Yes",
-						button2 = "No",
-						OnAccept = function()
-							-- Reset all NPCs' data
-							WORS_DropTrackerDB.npcLoots = {}
-							WORS_DropTrackerDB.npcKills = {}
-							WORS_DropTrackerDB.npcGuidCache = {}
-							WORS_DropTrackerDB.npcLootCache = {}
-							-- Update UI
-							print("Drop Tracker: All NPC data has been reset.")
-							updateLootUI()
-						end,
-						timeout = 0,
-						whileDead = true,
-						hideOnEscape = true,
-						preferredIndex = 3,
-					}
-					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET_ALL")
-				elseif IsShiftKeyDown() then
+
+			-- Tooltip and hover effects
+			
+			local MyAddon_Menu = {
+			{
+				text = "Hide " .. npcName,
+				notCheckable = true,
+				func = function()
+					-- Hide this NPC without confirmation
+					hiddenNPCs[npcName] = true  
+					print("Drop Tracker: " .. npcName .. " will tracked again after the next ".. npcName .." loot or on next login.")
+					updateLootUI()
+				end			
+			},
+			{
+				text = "Reset Data for " .. npcName,
+				notCheckable = true,
+				func = function()
 					-- Reset only this specific NPC's data
 					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET"] = {
 						text = "Drop Tracker: Do you want to reset " .. npcName .. " data?",
@@ -378,20 +379,54 @@ local function CreateLootTrackerUI()
 						timeout = 0,
 						whileDead = true,
 						hideOnEscape = true,
-						preferredIndex = 3,
+						
 					}
 					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET")
-				else
-					-- Hide this NPC without confirmation
-					hiddenNPCs[npcName] = true  
-					print("Drop Tracker: " .. npcName .. " will tracked again after the next ".. npcName .." loot or on next login.")
-					updateLootUI()
-
+				end
+				
+			},
+			{
+				text = "Reset All NPC Data",
+				notCheckable = true,
+				func = function()
+					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET_ALL"] = {
+						text = "Drop Tracker: Do you want to reset all NPCs?",
+						button1 = "Yes",
+						button2 = "No",
+						OnAccept = function()
+							-- Reset all NPCs' data
+							WORS_DropTrackerDB.npcLoots = {}
+							WORS_DropTrackerDB.npcKills = {}
+							WORS_DropTrackerDB.npcGuidCache = {}
+							WORS_DropTrackerDB.npcLootCache = {}
+							-- Update UI
+							print("Drop Tracker: All NPC data has been reset.")
+							updateLootUI()
+						end,
+						timeout = 0,
+						whileDead = true,
+						hideOnEscape = true,
+					}
+					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET_ALL")
+				end
+			},
+			{
+				text = "Close",
+				func = function() end,
+				notCheckable = true
+			}
+		}
+	
+			
+			
+			npcFrame:SetScript("OnMouseUp", function(self, button)
+				if button == "RightButton" then
+					EasyMenu(MyAddon_Menu, CreateFrame("Frame", "MyAddonMenu", UIParent, "UIDropDownMenuTemplate"), "cursor", 0 , 0, "MENU")
 				end
 			end)
-			-- Tooltip and hover effects
+			
 			npcFrame:SetScript("OnEnter", function(self)
-				local tooltipText = IsShiftKeyDown() and "Reset Data for " .. npcName or (IsControlKeyDown() and "Reset All NPC Data" or "Hide " .. npcName)
+				local tooltipText = "Right Click"
 				-- Show tooltip with dynamic text
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 				GameTooltip:SetText(tooltipText, 1, 1, 1, 1, true)
@@ -667,8 +702,10 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
         if btn == "LeftButton" then
 			if WORS_DropTracker:IsShown() then
 				WORS_DropTracker:Hide()
+				WORS_DropTrackerDB.showOnLaunch = false
 			else
 				WORS_DropTracker:Show()
+				WORS_DropTrackerDB.showOnLaunch = false
 			end        
 		elseif btn == "RightButton" then
             if WORS_DropTracker:IsShown() then
@@ -676,6 +713,7 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
             else
                 WORS_DropTracker:Show()
                 toggleDropTableTransparency()
+				WORS_DropTrackerDB.showOnLaunch = true
             end
         elseif btn == "MiddleButton" then
         	toggleSortOrder()
