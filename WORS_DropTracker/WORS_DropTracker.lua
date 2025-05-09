@@ -18,6 +18,7 @@ WORS_DropTrackerDB.framePos.yOfs = WORS_DropTrackerDB.framePos.yOfs or -150
 WORS_DropTrackerDB.framePos.width = WORS_DropTrackerDB.framePos.width or 150
 WORS_DropTrackerDB.framePos.height = WORS_DropTrackerDB.framePos.height or 150
 
+
 local hiddenNPCs = {}  -- Track hidden NPCs
 local testNpcGUID = 123456 -- Used with trackAllLootFrames
 local trackAllLootFrames = false -- set true to debug tracking dropped item
@@ -57,10 +58,20 @@ end
 local function trackLoot(npcName, unitGUID)
     -- Only track loot if it hasn't been processed for this NPC and GUID
     WORS_DropTrackerDB.lastTrackedNPC = npcName
-    if WORS_DropTrackerDB.npcLootCache[unitGUID] then
-        debugPrint("Loot for NPC " .. npcName .. " with GUID " .. unitGUID .. " has already been tracked.")
-        return  -- Skip loot tracking if already looted npc
-    end    
+	-- Check if in an instance and modify GUID if needed
+	local inInstance, instanceType = IsInInstance()
+	if inInstance and (instanceType == "party" or instanceType == "raid") then
+		unitGUID = unitGUID .. "-" .. GetServerTime()  -- Append timestamp to ensure uniqueness per run
+		
+		debugPrint("Instance detected! Modified GUID: " .. unitGUID)
+	end
+
+	-- Now check if loot for this GUID has already been tracked
+	if WORS_DropTrackerDB.npcLootCache[unitGUID] then
+		debugPrint("Loot for NPC " .. npcName .. " with GUID " .. unitGUID .. " has already been tracked.")
+		return  -- Skip loot tracking if already looted npc
+	end
+  
     local lootCount = GetNumLootItems()
     if lootCount > 0 then
         debugPrint("Loot window opened for NPC: " .. npcName)  
@@ -138,9 +149,7 @@ local function CreateLootTrackerUI()
     WORS_DropTracker:EnableMouse(true)
     WORS_DropTracker:RegisterForDrag("LeftButton")
 	WORS_DropTracker:SetClampedToScreen(true)
-	if not WORS_DropTrackerDB then
-        WORS_DropTrackerDB = {} -- Ensure the settings table exists
-    end
+
     -- Load size
     local width = WORS_DropTrackerDB.width or 150
     local height = WORS_DropTrackerDB.height or 150
@@ -151,12 +160,6 @@ local function CreateLootTrackerUI()
     else
         WORS_DropTracker:SetPoint("RIGHT", UIParent, "RIGHT", 0, -150) -- Default position
     end
-	-- load showOnLaunch
-	if WORS_DropTrackerDB.showOnLaunch == true then
-		WORS_DropTracker:Show()
-	else
-		WORS_DropTracker:Hide()
-	end
 	
 	-- Save the frame's position and size
 	local function SaveFrameSettings()
@@ -538,6 +541,11 @@ local function CreateLootTrackerUI()
 			end
 			-- Space between NPCs
 			yOffset = yOffset - 40
+			if WORS_DropTrackerDB.showOnLaunch then
+				WORS_DropTracker:Show()
+			else
+				WORS_DropTracker:Hide()
+			end
 		end
 		-- Adjust content height dynamically
 		content:SetHeight(math.abs(yOffset) + 20)
@@ -545,6 +553,7 @@ local function CreateLootTrackerUI()
 	end
 	-- Initial update
     updateLootUI()	
+	
     -- Hook resizing event to update UI dynamically
     return frame, updateLootUI
 end
@@ -705,7 +714,7 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
 				WORS_DropTrackerDB.showOnLaunch = false
 			else
 				WORS_DropTracker:Show()
-				WORS_DropTrackerDB.showOnLaunch = false
+				WORS_DropTrackerDB.showOnLaunch = true
 			end        
 		elseif btn == "RightButton" then
             if WORS_DropTracker:IsShown() then
