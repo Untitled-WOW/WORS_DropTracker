@@ -1,6 +1,6 @@
 ## Interface: 30300
 ## Title: Drop Tracker
-## Notes: Drop Tracker tracks your loot from NPC corpses|n|nClick NPC name to hide it until you loot another of that NPC or /reload.|nRight-Click NPC name to Hide or Reset NPC Data
+## Notes: Drop Tracker tracks your loot from NPC corpses|n|nClick NPC name to hide it until you loot another of that NPC or /reload.|nShift+Click NPC name to reset NPC Data.|nCtrl+Click any NPC name to reset all NPC Data.
 ## Author: Untitled - Discord@Llama69420
 ## Version: 1.0
 ## DefaultState: disabled

@@ -24,6 +24,14 @@ local testNpcGUID = 123456 -- Used with trackAllLootFrames
 local trackAllLootFrames = false -- set true to debug tracking dropped item
 local ignoreNext_LOOT_OPENED_Event = false
 
+local oborLootedWaitReset = false
+
+local resetInstanceMessages = {
+    ["Obor's Lair has been reset."] = "Obor's Lair",
+    ["Bryophyta's Cave has been reset."] = "Bryophyta's Cave",
+    -- Add more as needed
+}
+
 function debugPrint(message)
     if WORS_DropTrackerDB.debugMode then 
         print("Debug: " .. message)
@@ -54,6 +62,7 @@ local function formatOSRSNumber(value)
     return color .. formattedValue .. "|r"
 end
 
+
 -- Function to track loot
 local function trackLoot(npcName, unitGUID)
     -- Only track loot if it hasn't been processed for this NPC and GUID
@@ -61,9 +70,13 @@ local function trackLoot(npcName, unitGUID)
 	-- Check if in an instance and modify GUID if needed
 	local inInstance, instanceType = IsInInstance()
 	if inInstance and (instanceType == "party" or instanceType == "raid") then
-		unitGUID = unitGUID .. "-" .. GetServerTime()  -- Append timestamp to ensure uniqueness per run
+		if npcName == "Obor" and oborLootedWaitReset == true then
+			unitGUID = unitGUID .. "-" .. GetServerTime()  -- Append timestamp to ensure uniqueness per run
+			oborLootedWaitReset = true
+			debugPrint("Obor loot detected! Modified GUID: " .. unitGUID)
+		else
 		
-		debugPrint("Instance detected! Modified GUID: " .. unitGUID)
+		end
 	end
 
 	-- Now check if loot for this GUID has already been tracked
@@ -149,6 +162,8 @@ local function CreateLootTrackerUI()
     WORS_DropTracker:EnableMouse(true)
     WORS_DropTracker:RegisterForDrag("LeftButton")
 	WORS_DropTracker:SetClampedToScreen(true)
+	tinsert(UISpecialFrames, "WORS_DropTracker")
+
 
     -- Load size
     local width = WORS_DropTrackerDB.width or 150
@@ -210,7 +225,7 @@ local function CreateLootTrackerUI()
 	closeButton:SetPushedTexture("Interface\\WORS\\OldSchool-CloseButton-Down.blp")
 	closeButton:SetScript("OnClick", function()
 		WORS_DropTracker:Hide()
-		WORS_DropTrackerDB.showOnLaunch = false
+		--WORS_DropTrackerDB.showOnLaunch = false
 	end)
 	closeButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -542,9 +557,9 @@ local function CreateLootTrackerUI()
 			-- Space between NPCs
 			yOffset = yOffset - 40
 			if WORS_DropTrackerDB.showOnLaunch then
-				WORS_DropTracker:Show()
+				--WORS_DropTracker:Show()
 			else
-				WORS_DropTracker:Hide()
+				--WORS_DropTracker:Hide()
 			end
 		end
 		-- Adjust content height dynamically
@@ -554,6 +569,8 @@ local function CreateLootTrackerUI()
 	-- Initial update
     updateLootUI()	
 	
+	
+	WORS_DropTracker:Hide()
     -- Hook resizing event to update UI dynamically
     return frame, updateLootUI
 end
@@ -574,13 +591,23 @@ function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
 	end
 end
 
+
+
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
 WORS_DropTracker:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 WORS_DropTracker:RegisterEvent("UNIT_SPELLCAST_SENT")
+WORS_DropTracker:RegisterEvent("CHAT_MSG_SYSTEM")
+
 WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
-	if event == "UNIT_SPELLCAST_SENT" then
+	if event == "CHAT_MSG_SYSTEM" then
+	    local id = resetInstanceMessages[arg1]
+		if id then
+			oborLootedWaitReset = false
+			print("Reset detected for dungeon:", id)			
+		end
+	elseif event == "UNIT_SPELLCAST_SENT" then
         local unit, spell, _, spellCastID = ...
 		if string.find(spellCastID, "Sack of Goods") then
 			debugPrint("Detected opening Sack of Goods. Ignoring next LOOT_OPENED event.")
@@ -711,10 +738,10 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
         if btn == "LeftButton" then
 			if WORS_DropTracker:IsShown() then
 				WORS_DropTracker:Hide()
-				WORS_DropTrackerDB.showOnLaunch = false
+				--WORS_DropTrackerDB.showOnLaunch = false
 			else
 				WORS_DropTracker:Show()
-				WORS_DropTrackerDB.showOnLaunch = true
+				--WORS_DropTrackerDB.showOnLaunch = true
 			end        
 		elseif btn == "RightButton" then
             if WORS_DropTracker:IsShown() then
@@ -722,7 +749,7 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
             else
                 WORS_DropTracker:Show()
                 toggleDropTableTransparency()
-				WORS_DropTrackerDB.showOnLaunch = true
+				--WORS_DropTrackerDB.showOnLaunch = true
             end
         elseif btn == "MiddleButton" then
         	toggleSortOrder()
