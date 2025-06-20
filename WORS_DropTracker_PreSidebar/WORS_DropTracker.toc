@@ -1,0 +1,12 @@
+## Interface: 30300
+## Title: Drop Tracker
+## Notes: Drop Tracker tracks your loot from NPC corpses|n|nClick NPC name to hide it until you loot another of that NPC or /reload.|nShift+Click NPC name to reset NPC Data.|nCtrl+Click any NPC name to reset all NPC Data.
+## Author: Untitled - Discord@Llama69420
+## Version: 1.0
+## DefaultState: disabled
+## Dependencies: WORS_SlayerHelper
+## SavedVariables: WORS_DropTrackerMinimapDB
+## SavedVariablesPerCharacter: WORS_DropTrackerDB
+
+
+WORS_DropTracker.lua
