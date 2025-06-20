@@ -733,7 +733,7 @@ WORS_DropTrackerMinimapButton = LibStub("LibDBIcon-1.0", true)
 local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker", {
     type = "data source",
     text = "WORS DropTracker",
-    icon = "Interface\\Icons\\CoinsMany.blp", 
+    icon = "Interface\\Icons\\coinpouch.blp", 
     OnClick = function(self, btn)
         if btn == "LeftButton" then
 			if WORS_DropTracker:IsShown() then
