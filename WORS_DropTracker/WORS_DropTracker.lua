@@ -66,7 +66,6 @@ local function formatOSRSNumber(value)
     return color .. formattedValue .. "|r"
 end
 
-
 -- Function to track loot
 local function trackLoot(npcName, unitGUID)
     -- Only track loot if it hasn't been processed for this NPC and GUID
@@ -229,79 +228,71 @@ local function updateLootUI()
 		-- Tooltip and hover effects
 		
 		local MyAddon_Menu = {
-		{
-			text = "Hide " .. npcName,
-			notCheckable = true,
-			func = function()
-				-- Hide this NPC without confirmation
-				hiddenNPCs[npcName] = true  
-				print("Drop Tracker: " .. npcName .. " will tracked again after the next ".. npcName .." loot or on next login.")
-				updateLootUI()
-			end			
-		},
-		{
-			text = "Reset Data for " .. npcName,
-			notCheckable = true,
-			func = function()
-				-- Reset only this specific NPC's data
-				StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET"] = {
-					text = "Drop Tracker: Do you want to reset " .. npcName .. " data?",
-					button1 = "Yes",
-					button2 = "No",
-					OnAccept = function()
-						-- Reset only this NPC's data
-						WORS_DropTrackerDB.npcLoots[npcName] = nil
-						WORS_DropTrackerDB.npcKills[npcName] = nil
-						WORS_DropTrackerDB.npcGuidCache[npcName] = nil
-						WORS_DropTrackerDB.npcLootCache[npcName] = nil
+			{	text = "Hide " .. npcName,
+				notCheckable = true,
+				func = function()
+					-- Hide this NPC without confirmation
+					hiddenNPCs[npcName] = true  
+					print("Drop Tracker: " .. npcName .. " will tracked again after the next ".. npcName .." loot or on next login.")
+					updateLootUI()
+				end			
+			},
+			{	text = "Reset Data for " .. npcName,
+				notCheckable = true,
+				func = function()
+					-- Reset only this specific NPC's data
+					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET"] = {
+						text = "Drop Tracker: Do you want to reset " .. npcName .. " data?",
+						button1 = "Yes",
+						button2 = "No",
+						OnAccept = function()
+							-- Reset only this NPC's data
+							WORS_DropTrackerDB.npcLoots[npcName] = nil
+							WORS_DropTrackerDB.npcKills[npcName] = nil
+							WORS_DropTrackerDB.npcGuidCache[npcName] = nil
+							WORS_DropTrackerDB.npcLootCache[npcName] = nil
 
-						-- Update UI
-						print("Drop Tracker: " .. npcName .. " data has been reset.")
-						updateLootUI()
-					end,
-					timeout = 0,
-					whileDead = true,
-					hideOnEscape = true,
-					
-				}
-				StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET")
-			end
-			
-		},
-		{
-			text = "Reset All NPC Data",
-			notCheckable = true,
-			func = function()
-				StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET_ALL"] = {
-					text = "Drop Tracker: Do you want to reset all NPCs?",
-					button1 = "Yes",
-					button2 = "No",
-					OnAccept = function()
-						-- Reset all NPCs' data
-						WORS_DropTrackerDB.npcLoots = {}
-						WORS_DropTrackerDB.npcKills = {}
-						WORS_DropTrackerDB.npcGuidCache = {}
-						WORS_DropTrackerDB.npcLootCache = {}
-						-- Update UI
-						print("Drop Tracker: All NPC data has been reset.")
-						updateLootUI()
-					end,
-					timeout = 0,
-					whileDead = true,
-					hideOnEscape = true,
-				}
-				StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET_ALL")
-			end
-		},
-		{
-			text = "Close",
-			func = function() end,
-			notCheckable = true
+							-- Update UI
+							print("Drop Tracker: " .. npcName .. " data has been reset.")
+							updateLootUI()
+						end,
+						timeout = 0,
+						whileDead = true,
+						hideOnEscape = true,
+						
+					}
+					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET")
+				end				
+			},
+			{	text = "Reset All NPC Data",
+				notCheckable = true,
+				func = function()
+					StaticPopupDialogs["WORS_DROPTRACKER_NPC_RESET_ALL"] = {
+						text = "Drop Tracker: Do you want to reset all NPCs?",
+						button1 = "Yes",
+						button2 = "No",
+						OnAccept = function()
+							-- Reset all NPCs' data
+							WORS_DropTrackerDB.npcLoots = {}
+							WORS_DropTrackerDB.npcKills = {}
+							WORS_DropTrackerDB.npcGuidCache = {}
+							WORS_DropTrackerDB.npcLootCache = {}
+							-- Update UI
+							print("Drop Tracker: All NPC data has been reset.")
+							updateLootUI()
+						end,
+						timeout = 0,
+						whileDead = true,
+						hideOnEscape = true,
+					}
+					StaticPopup_Show("WORS_DROPTRACKER_NPC_RESET_ALL")
+				end
+			},
+			{	text = "Close",
+				func = function() end,
+				notCheckable = true
+			}
 		}
-	}
-
-		
-		
 		npcFrame:SetScript("OnMouseUp", function(self, button)
 			if button == "RightButton" then
 				EasyMenu(MyAddon_Menu, CreateFrame("Frame", "MyAddonMenu", UIParent, "UIDropDownMenuTemplate"), "cursor", 0 , 0, "MENU")
@@ -421,17 +412,10 @@ local function updateLootUI()
 		end
 		-- Space between NPCs
 		yOffset = yOffset - 40
-		if WORS_DropTrackerDB.showOnLaunch then
-			--WORS_DropTracker:Show()
-		else
-			--WORS_DropTracker:Hide()
-		end
 	end
 	-- Adjust content height dynamically
 	content:SetHeight(math.abs(yOffset) + 20)
 end
-
-
 
 local function CreateLootTrackerUI()
     -- Create main frame
@@ -458,19 +442,11 @@ local function CreateLootTrackerUI()
 			currentModule = nil
 		end
 	end)
-	closeButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Close", 1, 1, 1)  -- Set the text for the tooltip (white color)
-        GameTooltip:Show()
-    end)
-    closeButton:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)	
 	-- Create title
     local title = WORS_DropTracker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOP", 0, -10)
     title:SetText("Drop Tracker")
-	title:SetFont("Fonts/runescape.ttf", 18, "OUTLINE")  -- 18 font size
+	title:SetFont("Fonts/runescape.ttf", 22, "OUTLINE")  -- 18 font size
 	-- Create the scrollable container for loot data
 	scrollFrame = CreateFrame("ScrollFrame", "DropTrackerScrollFrame", WORS_DropTracker, "UIPanelScrollFrameTemplate")
 	scrollFrame:SetPoint("TOPLEFT", 3, 0)
@@ -486,20 +462,13 @@ local function CreateLootTrackerUI()
 	local scrollDownButton = _G["DropTrackerScrollFrameScrollBarScrollDownButton"]
 	scrollBar:Hide(); scrollBar:SetAlpha(0); scrollUpButton:Hide(); scrollDownButton:Hide(); scrollUpButton:SetAlpha(0); scrollDownButton:SetAlpha(0)
 	scrollBar:EnableMouse(false)
-
-	
-
-	
 	
 	WORS_DropTracker:Hide()
     -- Hook resizing event to update UI dynamically
 	updateLootUI()
     return frame
 end
-
-
 CreateLootTrackerUI()
-
 
 function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
     if lootSourceGUID and lootSourceName then
@@ -514,8 +483,6 @@ function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
         trackLoot(lootSourceName, lootSourceGUID)
 	end
 end
-
-
 
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
@@ -611,7 +578,6 @@ WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
 	end
 end)
 
-
 local function toggleSortOrder()
     if WORS_DropTrackerDB.sortByAD == "ascending" then
         WORS_DropTrackerDB.sortByAD = "descending"
@@ -622,8 +588,6 @@ local function toggleSortOrder()
     end
 	updateLootUI()
 end
-
-
 
 if RegisterSidebarModule then
     RegisterSidebarModule("DropTracker", WORS_DropTracker, "Interface\\Icons\\CoinPouch.blp", "Drop Tracker\nClick to open")
@@ -652,6 +616,3 @@ if btn then
 else
     print("SidebarPluginBtn_DropTracker not found!")
 end
-
-
-
