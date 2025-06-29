@@ -4,7 +4,7 @@
 ## Author: Untitled - Discord@Llama69420
 ## Version: 1.0
 ## DefaultState: disabled
-## Dependencies: WORS_SlayerHelper
+## OptionalDeps: WORS_SlayerHelper
 ## SavedVariables: WORS_DropTrackerMinimapDB
 ## SavedVariablesPerCharacter: WORS_DropTrackerDB
 

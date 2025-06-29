@@ -417,66 +417,16 @@ local function updateLootUI()
 	content:SetHeight(math.abs(yOffset) + 20)
 end
 
-local function SaveFrameSettings()
-	local point, _, relativePoint, xOfs, yOfs = WORS_DropTracker:GetPoint()
-	WORS_DropTrackerDB.point = point
-	WORS_DropTrackerDB.relativePoint = relativePoint
-	WORS_DropTrackerDB.xOfs = xOfs
-	WORS_DropTrackerDB.yOfs = yOfs
-	WORS_DropTrackerDB.width = WORS_DropTracker:GetWidth()
-	WORS_DropTrackerDB.height = WORS_DropTracker:GetHeight()
-end
-
 local function CreateLootTrackerUI()
-	-- create ui correct depending if sidebar addon is enabled or not
-	if IsAddOnLoaded("WORS_SlayerHelper") then
-		-- safe to call CoolEnhancer’s functions/events
-		print("WORS_SlayerHelper: Loaded")	
-		WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", MySidebarPanel)
-		WORS_DropTracker:SetAllPoints(MySidebarPanel) -- Fully fills the sidebar panel
-		WORS_DropTracker:SetMovable(false)
-		WORS_DropTracker:EnableMouse(false)
-		WORS_DropTracker:SetResizable(false)
-		WORS_DropTracker:SetFrameStrata("High")
-		WORS_DropTracker:SetFrameLevel(1)
-	
-	else
-		print("WORS_SlayerHelper: NOT Loaded")			
-		WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", UIParent)
-		local width, height = WORS_DropTrackerDB.width or 150, WORS_DropTrackerDB.height or 150
-		WORS_DropTracker:SetSize(width, height)
-		WORS_DropTracker:SetBackdrop({
-			bgFile = "Interface\\Buttons\\WHITE8x8",  -- A simple 1x1 pixel texture
-			insets = { left = 0, right = 0, top = 0, bottom = 0 }
-		})
-		WORS_DropTracker:SetBackdropColor(0.12, 0.12, 0.12, 1.0)  
-		if WORS_DropTrackerDB.point then
-			WORS_DropTracker:SetPoint(WORS_DropTrackerDB.point, UIParent, WORS_DropTrackerDB.relativePoint, WORS_DropTrackerDB.xOfs, WORS_DropTrackerDB.yOfs)
-		else
-			WORS_DropTracker:SetPoint("RIGHT", UIParent, "RIGHT", 0, -150) -- Default position
-		end		
-		WORS_DropTracker:SetMovable(true)
-		WORS_DropTracker:EnableMouse(true)
-		WORS_DropTracker:SetResizable(true)
-		WORS_DropTracker:SetMinResize(100, 100)  
-		WORS_DropTracker:SetMaxResize(600, 600)		
-		WORS_DropTracker:RegisterForDrag("LeftButton")
-		WORS_DropTracker:SetClampedToScreen(true)		
-		WORS_DropTracker:SetScript("OnDragStart", WORS_DropTracker.StartMoving)
-		WORS_DropTracker:SetScript("OnDragStop", function(self)
-			self:StopMovingOrSizing()
-			SaveFrameSettings()
-		end)		
-		local resizeHandle = CreateFrame("Button", nil, WORS_DropTracker)
-		resizeHandle:SetSize(16, 16)
-		resizeHandle:SetPoint("BOTTOMRIGHT")
-		resizeHandle:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-		resizeHandle:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-		resizeHandle:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-		resizeHandle:SetScript("OnMouseDown", function() WORS_DropTracker:StartSizing("BOTTOMRIGHT") end)
-		resizeHandle:SetScript("OnMouseUp", function() WORS_DropTracker:StopMovingOrSizing() end)
-	end
-
+    -- Create main frame
+	WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", MySidebarPanel)
+	WORS_DropTracker:SetAllPoints(MySidebarPanel) -- Fully fills the sidebar panel
+	WORS_DropTracker:SetMovable(false)
+	WORS_DropTracker:EnableMouse(false)
+	WORS_DropTracker:SetResizable(false)
+	WORS_DropTracker:SetFrameStrata("High")
+	WORS_DropTracker:SetFrameLevel(1)
+       -- Ensures it's at the bottom of LOW strata
 	-- Create close button
 	local closeButton = CreateFrame("Button", nil, WORS_DropTracker)
 	closeButton:SetSize(20, 20)
@@ -518,23 +468,7 @@ local function CreateLootTrackerUI()
 	updateLootUI()
     return frame
 end
-
 CreateLootTrackerUI()
-
-
--- Resize handling function
-local lastResizeTime = 0
-local resizeCooldown = 0.2  -- Time in seconds to wait after resizing before updating
-local function handleResize(self)
-    local currentTime = GetTime()
-    if currentTime - lastResizeTime > resizeCooldown then
-        lastResizeTime = currentTime  -- Update the last resize time
-        updateLootUI()  
-    end
-end
-WORS_DropTracker:SetScript("OnSizeChanged", handleResize)
-
-
 
 function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
     if lootSourceGUID and lootSourceName then
@@ -550,18 +484,6 @@ function ProcessNPCLoot(lootSourceGUID, lootSourceName, lootSourceLvl)
 	end
 end
 
-
-local function toggleSortOrder()
-    if WORS_DropTrackerDB.sortByAD == "ascending" then
-        WORS_DropTrackerDB.sortByAD = "descending"
-        debugPrint("Sorting by: Priority First, then Quantity (Descending)")
-    else
-        WORS_DropTrackerDB.sortByAD = "ascending"
-        debugPrint("Sorting by: Priority First, then Quantity (Ascending)")
-    end
-	updateLootUI()
-end
-
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
@@ -570,44 +492,8 @@ WORS_DropTracker:RegisterEvent("UNIT_SPELLCAST_SENT")
 WORS_DropTracker:RegisterEvent("CHAT_MSG_SYSTEM")
 WORS_DropTracker:RegisterEvent("PLAYER_ENTERING_WORLD")
 WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
-	if event == "PLAYER_ENTERING_WORLD" then	
+	if event == "PLAYER_ENTERING_WORLD" then		
 		updateLootUI()	
-		if IsAddOnLoaded("WORS_SlayerHelper") then
-			if RegisterSidebarModule then
-				RegisterSidebarModule("DropTracker", WORS_DropTracker, "Interface\\Icons\\CoinPouch.blp", "Drop Tracker\nClick to open")
-			end
-
-			local btn = _G["SidebarPluginBtn_DropTracker"]
-			if btn then
-				btn:RegisterForClicks("LeftButtonUp", "MiddleButtonUp")
-
-				btn:SetScript("OnClick", function(self, button)
-					print("DropTracker button clicked with:", button)
-					if button == "MiddleButton" then
-						if not MySidebarPanel:IsShown() then
-							print("Sidebar not shown, opening DropTracker...")
-							ToggleSidebar("DropTracker")
-						end
-						print("Middle click detected: toggling sort order")
-						toggleSortOrder()
-					elseif button == "LeftButton" then
-						print("Left click detected: toggling sidebar panel")
-						ToggleSidebar("DropTracker")
-					else
-						print("Other button clicked:", button)
-					end
-				end)
-			else
-				SLASH_WORSDROP1 = "/droptracker"
-				SlashCmdList.WORSDROP = function()
-					WORS_DropTracker:Show()
-				end
-			end	
-		else
-		
-		
-		
-		end
 	elseif event == "CHAT_MSG_SYSTEM" then
 	    local id = resetInstanceMessages[arg1]
 		if id then
@@ -692,58 +578,41 @@ WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
 	end
 end)
 
+local function toggleSortOrder()
+    if WORS_DropTrackerDB.sortByAD == "ascending" then
+        WORS_DropTrackerDB.sortByAD = "descending"
+        debugPrint("Sorting by: Priority First, then Quantity (Descending)")
+    else
+        WORS_DropTrackerDB.sortByAD = "ascending"
+        debugPrint("Sorting by: Priority First, then Quantity (Ascending)")
+    end
+	updateLootUI()
+end
 
+if RegisterSidebarModule then
+    RegisterSidebarModule("DropTracker", WORS_DropTracker, "Interface\\Icons\\CoinPouch.blp", "Drop Tracker\nClick to open")
+end
 
+local btn = _G["SidebarPluginBtn_DropTracker"]
+if btn then
+    btn:RegisterForClicks("LeftButtonUp", "MiddleButtonUp")
 
-
-
--- Minimap Icon for WORS_DropTracker if sidebar is not enabled using LibDBIcon and Ace3
-local addon = LibStub("AceAddon-3.0"):NewAddon("WORS_DropTracker")
-WORS_DropTrackerMinimapButton = LibStub("LibDBIcon-1.0", true)
-local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker", {
-	type = "data source",
-	text = "WORS DropTracker",
-	icon = "Interface\\Icons\\coinpouch.blp", 
-	OnClick = function(self, btn)
-		if btn == "LeftButton" then
-			if WORS_DropTracker:IsShown() then
-				WORS_DropTracker:Hide()
-				--WORS_DropTrackerDB.showOnLaunch = false
-			else
-				WORS_DropTracker:Show()
-				--WORS_DropTrackerDB.showOnLaunch = true
-			end        
-		elseif btn == "RightButton" then
-			if WORS_DropTracker:IsShown() then
-				toggleDropTableTransparency()
-			else
-				WORS_DropTracker:Show()
-				toggleDropTableTransparency()
-				--WORS_DropTrackerDB.showOnLaunch = true
-			end
-		elseif btn == "MiddleButton" then
-			toggleSortOrder()
-		end
-	end,
-	OnTooltipShow = function(tooltip)
-		if not tooltip or not tooltip.AddLine then
-			return
-		end
-		tooltip:AddLine("Drop Tracker\nLeft-click: Toggle Drop Tracker Window", nil, nil, nil, nil)
-		tooltip:AddLine("Right-click: Toggle Transparency 0%, 50% or 100%\nMiddle-click: Toggle Item sort order", nil, nil, nil, nil)
-	end,
-})
-
-function addon:OnInitialize()
-	if IsAddOnLoaded("WORS_SlayerHelper") then return end
-
-	self.db = LibStub("AceDB-3.0"):New("WORS_DropTrackerMinimapDB", {
-		profile = {
-			minimap = {
-				hide = false,
-				minimapPos = 190, 
-			},
-		},
-	})
-	WORS_DropTrackerMinimapButton:Register("WORS_DropTracker", miniButton, self.db.profile.minimap)
+    btn:SetScript("OnClick", function(self, button)
+        print("DropTracker button clicked with:", button)
+        if button == "MiddleButton" then
+            if not MySidebarPanel:IsShown() then
+                print("Sidebar not shown, opening DropTracker...")
+                ToggleSidebar("DropTracker")
+            end
+            print("Middle click detected: toggling sort order")
+            toggleSortOrder()
+        elseif button == "LeftButton" then
+            print("Left click detected: toggling sidebar panel")
+            ToggleSidebar("DropTracker")
+        else
+            print("Other button clicked:", button)
+        end
+    end)
+else
+    print("SidebarPluginBtn_DropTracker not found!")
 end
