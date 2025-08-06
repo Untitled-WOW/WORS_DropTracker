@@ -429,19 +429,19 @@ end
 
 local function CreateLootTrackerUI()
 	-- create ui correct depending if sidebar addon is enabled or not
-	if IsAddOnLoaded("WORS_SlayerHelper") then
+	if IsAddOnLoaded("WORSLite") then
 		-- safe to call CoolEnhancer’s functions/events
-		print("WORS_SlayerHelper: Loaded")	
+		--print("WORSLite: Loaded")	
 		WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", MySidebarPanel)
 		WORS_DropTracker:SetAllPoints(MySidebarPanel) -- Fully fills the sidebar panel
 		WORS_DropTracker:SetMovable(false)
 		WORS_DropTracker:EnableMouse(false)
 		WORS_DropTracker:SetResizable(false)
 		WORS_DropTracker:SetFrameStrata("High")
-		WORS_DropTracker:SetFrameLevel(1)
+		WORS_DropTracker:SetFrameLevel(10)
 	
 	else
-		print("WORS_SlayerHelper: NOT Loaded")			
+		--print("WORSLite: NOT Loaded")			
 		WORS_DropTracker = CreateFrame("Frame", "WORS_DropTracker", UIParent)
 		local width, height = WORS_DropTrackerDB.width or 150, WORS_DropTrackerDB.height or 150
 		WORS_DropTracker:SetSize(width, height)
@@ -564,15 +564,16 @@ end
 
 -- Event to track loot when it's opened
 WORS_DropTracker:RegisterEvent("LOOT_OPENED")
+WORS_DropTracker:RegisterEvent("PLAYER_LOGIN")
 WORS_DropTracker:RegisterEvent("PLAYER_LOGOUT")
 WORS_DropTracker:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 WORS_DropTracker:RegisterEvent("UNIT_SPELLCAST_SENT")
 WORS_DropTracker:RegisterEvent("CHAT_MSG_SYSTEM")
 WORS_DropTracker:RegisterEvent("PLAYER_ENTERING_WORLD")
 WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
-	if event == "PLAYER_ENTERING_WORLD" then	
+	if event == "PLAYER_LOGIN" then	
 		updateLootUI()	
-		if IsAddOnLoaded("WORS_SlayerHelper") then
+		if IsAddOnLoaded("WORSLite") then
 			if RegisterSidebarModule then
 				RegisterSidebarModule("DropTracker", WORS_DropTracker, "Interface\\Icons\\CoinPouch.blp", "Drop Tracker\nClick to open")
 			end
@@ -582,19 +583,19 @@ WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
 				btn:RegisterForClicks("LeftButtonUp", "MiddleButtonUp")
 
 				btn:SetScript("OnClick", function(self, button)
-					print("DropTracker button clicked with:", button)
+					--print("DropTracker button clicked with:", button)
 					if button == "MiddleButton" then
 						if not MySidebarPanel:IsShown() then
-							print("Sidebar not shown, opening DropTracker...")
+							--print("Sidebar not shown, opening DropTracker...")
 							ToggleSidebar("DropTracker")
 						end
-						print("Middle click detected: toggling sort order")
+						--print("Middle click detected: toggling sort order")
 						toggleSortOrder()
 					elseif button == "LeftButton" then
-						print("Left click detected: toggling sidebar panel")
+						--print("Left click detected: toggling sidebar panel")
 						ToggleSidebar("DropTracker")
 					else
-						print("Other button clicked:", button)
+						--print("Other button clicked:", button)
 					end
 				end)
 			else
@@ -612,7 +613,7 @@ WORS_DropTracker:SetScript("OnEvent", function(self, event, ...)
 	    local id = resetInstanceMessages[arg1]
 		if id then
 			oborLootedWaitReset = false
-			print("Reset detected for dungeon:", id)			
+			--print("Reset detected for dungeon:", id)			
 		end
 	elseif event == "UNIT_SPELLCAST_SENT" then
         local unit, spell, _, spellCastID = ...
@@ -735,7 +736,7 @@ local miniButton = LibStub("LibDataBroker-1.1"):NewDataObject("WORS_DropTracker"
 })
 
 function addon:OnInitialize()
-	if IsAddOnLoaded("WORS_SlayerHelper") then return end
+	if IsAddOnLoaded("WORSLite") then return end
 
 	self.db = LibStub("AceDB-3.0"):New("WORS_DropTrackerMinimapDB", {
 		profile = {
